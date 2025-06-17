@@ -1,17 +1,23 @@
 
-# Sistema de Recomendação de Filmes com FastAPI
+# Documentação Técnica — Sistema de Recomendação de Filmes com FastAPI
 
-Este projeto implementa um sistema híbrido de recomendação de filmes, utilizando Python, FastAPI, pandas e Docker. Ele expõe uma API REST para interação com o sistema de recomendação, suportando operações como criação de usuários, envio de avaliações e obtenção de recomendações personalizadas.
+Este projeto implementa um sistema híbrido de recomendação de filmes, utilizando Python, FastAPI, pandas e Docker. A aplicação expõe uma API REST que permite interagir com o motor de recomendação por meio de operações como criação de usuários, adição de filmes, envio de avaliações e geração de recomendações personalizadas.
+
+---
 
 ## Sumário
 
 - [Visão Geral](#visão-geral)
 - [Modelo de Recomendação](#modelo-de-recomendação)
+- [Preprocessamento](#preprocessamento)
 - [Instalação Local](#instalação-local)
 - [Execução com Docker](#execução-com-docker)
 - [Endpoints da API](#endpoints-da-api)
 - [Exemplos de Requisição](#exemplos-de-requisição)
 - [Estrutura do Projeto](#estrutura-do-projeto)
+- [Observações Finais](#observações-finais)
+
+---
 
 ## Visão Geral
 
@@ -19,33 +25,57 @@ A API oferece funcionalidades para:
 
 - Criar usuários e adicionar filmes.
 - Registrar avaliações de filmes por usuários.
-- Gerar recomendações híbridas para um usuário com base em preferências anteriores.
+- Gerar recomendações híbridas com base nas avaliações e gêneros dos filmes.
+
+---
 
 ## Modelo de Recomendação
 
-O sistema utiliza um **modelo híbrido**, combinando:
+O sistema implementa um **modelo híbrido**, composto por:
 
-- **Filtragem Colaborativa (baseada em usuários):**
-  - Identifica usuários similares com base em filmes avaliados em comum.
-  - Agrega avaliações médias dos usuários similares.
+### 1. Filtragem Colaborativa (User-Based)
+- Considera os usuários que avaliaram os mesmos filmes que o usuário alvo.
+- Calcula a média das avaliações feitas por usuários similares.
 
-- **Filtragem Baseada em Conteúdo:**
-  - Utiliza TF-IDF sobre os gêneros dos filmes para calcular similaridade entre títulos.
+### 2. Filtragem Baseada em Conteúdo
+- Utiliza **TF-IDF** sobre os gêneros dos filmes.
+- Calcula a similaridade entre filmes usando **cosine similarity**.
 
-A recomendação final pondera ambos os modelos:
+### Combinação Híbrida
+
+O escore final é uma média ponderada dos dois métodos:
 
 ```python
 score = 0.5 * score_colaborativo + 0.5 * score_conteúdo
 ```
 
-Caso não existam usuários similares ou o conteúdo não possa ser avaliado, a recomendação usa fallback para a parte disponível.
+Caso algum dos componentes esteja indisponível (por exemplo, usuário novo), a recomendação será baseada exclusivamente no método restante.
+
+---
+
+## Preprocessamento
+
+O arquivo `preprocess.py` (opcional e não obrigatório para a execução da API) realiza o cálculo e salvamento antecipado da matriz de similaridade entre filmes (`cosine_sim.npy`). Ele deve ser executado apenas uma vez para gerar essa matriz e economizar tempo de carregamento:
+
+```bash
+python preprocess.py
+```
+
+Esse script:
+- Lê o `movie.csv`
+- Calcula o TF-IDF sobre os gêneros
+- Salva `cosine_sim.npy` em `data/`
+
+**Nota:** Os arquivos `.csv` e `.npy` foram disponibilizados via [Google Drive](https://drive.google.com/file/d/1WWBC_6zS7bRcVV8ZBy3bVcBzecCYQf3Y/view?usp=sharing) e não são versionados no Git.
+
+---
 
 ## Instalação Local
 
 1. Clone o repositório:
 
 ```bash
-git clone https://github.com/seu-usuario/seu-repositorio.git
+git clone https://github.com/luccacodeco/projeto-final-ia.git
 cd seu-repositorio
 ```
 
@@ -53,8 +83,9 @@ cd seu-repositorio
 
 ```bash
 python -m venv venv
-source venv/bin/activate   # Linux/macOS
-venv\Scripts\activate    # Windows
+# Ative conforme o sistema operacional
+source venv/bin/activate      # Linux/macOS
+venv\Scripts\activate       # Windows
 ```
 
 3. Instale as dependências:
@@ -63,17 +94,19 @@ venv\Scripts\activate    # Windows
 pip install -r requirements.txt
 ```
 
-4. Execute a API:
+4. Execute o servidor FastAPI:
 
 ```bash
 uvicorn app.main:app --reload
 ```
 
-5. Acesse em `http://localhost:8000/docs`
+5. Acesse a documentação Swagger em `http://localhost:8000/docs`
+
+---
 
 ## Execução com Docker
 
-1. Certifique-se de ter o Docker instalado e em execução.
+1. Certifique-se de ter o Docker instalado e ativo.
 
 2. Construa a imagem:
 
@@ -81,13 +114,15 @@ uvicorn app.main:app --reload
 docker compose build
 ```
 
-3. Inicie o serviço:
+3. Suba a aplicação:
 
 ```bash
 docker compose up
 ```
 
-4. Acesse a API em `http://localhost:8000/docs`
+4. Acesse a API no navegador: [http://localhost:8000/docs](http://localhost:8000/docs)
+
+---
 
 ## Endpoints da API
 
@@ -98,32 +133,44 @@ docker compose up
 | POST   | /avaliacoes            | Registra uma avaliação                         |
 | GET    | /recomendacoes/{id}    | Retorna recomendações para um usuário          |
 
+---
+
 ## Exemplos de Requisição
 
 ### Criar usuário
 
-Parâmetro query (user_id): 100000 (exemplo)
+- Parâmetro de query `user_id`: 100000
+
+Swagger: `POST /usuarios?user_id=100000`
 
 ### Adicionar filme
 
+```json
 {
   "movieId": 99999,
   "title": "Exemplo de Filme",
   "genres": "Action|Adventure"
 }
+```
 
 ### Adicionar avaliação
 
+```json
 {
   "userId": 100000,
   "movieId": 99999,
   "rating": 4.5
 }
+```
 
 ### Obter recomendações
 
-Parâmetro path (user_id): 1
-Parâmetro Query (top_n): 5
+- Parâmetro de path `user_id`: 1
+- Parâmetro de query `top_n`: 5
+
+Swagger: `GET /recomendacoes/1?top_n=5`
+
+---
 
 ## Estrutura do Projeto
 
@@ -134,17 +181,18 @@ Parâmetro Query (top_n): 5
 │   ├── model.py        # Lógica de recomendação híbrida
 │   ├── database.py     # Simulação de base de dados em memória
 │   └── __init__.py
-├── data/
-│   ├── movie.csv       # Base de filmes
-│   └── rating.csv      # Base de avaliações
+├── data/               # Contém os dados CSV e NPY (não versionados)
 ├── Dockerfile
 ├── docker-compose.yml
 ├── requirements.txt
+├── preprocess.py       # Cálculo antecipado da matriz de similaridade (opcional)
 └── README.md
 ```
 
-## Observações
+---
 
-- Os dados são carregados em memória (sem banco de dados real).
-- A criação de usuários é simbólica (não persistida).
-- A pasta `data/` deve conter os arquivos `movie.csv` e `rating.csv`.
+## Observações Finais
+
+- A pasta `data/` foi excluída do versionamento por conter arquivos grandes (>100MB). Baixe separadamente via [Google Drive](https://drive.google.com/file/d/1WWBC_6zS7bRcVV8ZBy3bVcBzecCYQf3Y/view?usp=sharing).
+- Usuários não são persistidos — são simulados a partir das avaliações.
+- A recomendação usa fallback se não houver dados suficientes para um dos métodos.
