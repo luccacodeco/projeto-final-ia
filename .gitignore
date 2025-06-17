@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.db
+.env
+.venv/
+ia/
+*.log
+*.sqlite3
+*.zip
+*.tar
+*.gz
