@@ -11,3 +11,4 @@ ia/
 *.zip
 *.tar
 *.gz
+data/
